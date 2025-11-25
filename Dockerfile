@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Install minimal ffmpeg (Railway-safe)
+# Install minimal ffmpeg (safe for Railway)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
     apt-get clean && rm -rf /var/lib/apt/lists/*

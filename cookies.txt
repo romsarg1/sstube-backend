@@ -1,0 +1,2 @@
+# Netscape HTTP Cookie File
+.youtube.com	TRUE	/	TRUE	0	__Secure-3PSID	g.a0003whtk7eci9xsMegcRn_EfxBMwgQ_vDdfXy6sS4qVij1XbVGLjc_jBOWqwNQVfqjWqprsGAACgYKAc8SARQSFQHGX2MiXGQ90VaKgnH5q2bN5o3HJxoVAUF8yKr3oE1m8Y-VUS2I1uWcFEdq0076

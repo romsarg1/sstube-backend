@@ -20,13 +20,13 @@ async def download(url: str = Query(...)):
     output = f"/app/{uuid.uuid4()}.mp4"   # unique filename per download
 
     cmd = [
-        "yt-dlp",
-        "-f", "bv*[vcodec^=avc1]+ba/b",   # force H.264 (no AV1)
-        "--merge-output-format", "mp4",
-        "--cookies", COOKIE_FILE,
-        "-o", output,
-        url
-    ]
+    "yt-dlp",
+    "-f", "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/b[acodec^=mp4a]/b",
+    "--merge-output-format", "mp4",
+    "--cookies", COOKIE_FILE,
+    "-o", output,
+    url
+]
 
     try:
         subprocess.run(cmd, check=True)

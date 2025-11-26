@@ -1,5 +1,6 @@
 import os
 import subprocess
+import uuid
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -16,11 +17,11 @@ async def download(url: str = Query(...)):
     if not url:
         return JSONResponse({"error": "missing url"}, status_code=400)
 
-    output = "/app/video.mp4"
+    output = f"/app/{uuid.uuid4()}.mp4"   # unique filename per download
 
     cmd = [
         "yt-dlp",
-        "-f", "bestvideo+bestaudio/best",
+        "-f", "bv*[vcodec^=avc1]+ba/b",   # force H.264 (no AV1)
         "--merge-output-format", "mp4",
         "--cookies", COOKIE_FILE,
         "-o", output,

@@ -3,18 +3,62 @@ import uuid
 import subprocess
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
+import yt_dlp
 
 app = FastAPI()
 
 COOKIE_FILE = "/app/cookies.txt"
 
+
+# -----------------------
+# HEALTH CHECK
+# -----------------------
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
 # -----------------------
-# MP4 DOWNLOAD (UNCHANGED)
+# AUTO-DETECT METADATA
+# -----------------------
+@app.get("/meta")
+def get_metadata(url: str = Query(...)):
+    """
+    Extracts metadata: title, thumbnail, author, duration, platform.
+    """
+    if not url or len(url) < 5:
+        return JSONResponse({"status": "error", "message": "Invalid URL"}, status_code=400)
+
+    try:
+        ydl_opts = {
+            "quiet": True,
+            "skip_download": True,
+            "noplaylist": True,
+            "extract_flat": False
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        metadata = {
+            "title": info.get("title"),
+            "thumbnail": info.get("thumbnail"),
+            "author": info.get("uploader") or info.get("channel") or info.get("creator"),
+            "duration": info.get("duration"),
+            "platform": info.get("extractor_key")
+        }
+
+        return JSONResponse({"status": "ok", "meta": metadata})
+
+    except Exception as e:
+        return JSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=400
+        )
+
+
+# -----------------------
+# MP4 DOWNLOAD
 # -----------------------
 @app.get("/download")
 async def download(url: str = Query(...)):
@@ -49,7 +93,7 @@ async def download(url: str = Query(...)):
 
 
 # -----------------------
-# MP3 DOWNLOAD (NEW)
+# MP3 DOWNLOAD
 # -----------------------
 @app.get("/mp3")
 async def download_mp3(url: str = Query(...)):

@@ -1,6 +1,4 @@
-import os
-import uuid
-import subprocess
+import os, uuid, subprocess, threading, time
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 import yt_dlp
@@ -11,69 +9,53 @@ COOKIE_FILE = "/app/cookies.txt"
 DOWNLOAD_DIR = "/tmp"
 
 
-# -----------------------------
-# HEALTH
-# -----------------------------
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+def delete_file_later(path, delay=180):
+    def _delete():
+        time.sleep(delay)
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except:
+                pass
+    threading.Thread(target=_delete, daemon=True).start()
 
 
-# -----------------------------
-# VIDEO INFO
-# -----------------------------
 @app.get("/info")
-def info(url: str = Query(...)):
+def info(url: str):
     try:
-        ydl_opts = {
-            "quiet": True,
-            "skip_download": True,
-            "noplaylist": True
-        }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
             data = ydl.extract_info(url, download=False)
 
         return {
             "title": data.get("title"),
             "thumbnail": data.get("thumbnail"),
             "uploader": data.get("uploader"),
-            "duration": data.get("duration_string"),
-            "extractor": data.get("extractor")
+            "duration": data.get("duration_string")
         }
-
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
-# -----------------------------
-# DOWNLOAD (CLOUDFLARE-SAFE)
-# -----------------------------
 @app.get("/download")
-def download(
-    url: str = Query(...),
-    type: str = Query("mp4"),
-    quality: str = Query("best")
-):
-    type = type.lower()
-
+def download(url: str, type: str = "mp4", quality: str = "best"):
     uid = str(uuid.uuid4())
-    output_template = os.path.join(DOWNLOAD_DIR, f"{uid}.%(ext)s")
+    output = os.path.join(DOWNLOAD_DIR, f"{uid}.%(ext)s")
+
+    with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
+        info = ydl.extract_info(url, download=False)
+        title = "".join(c for c in info["title"] if c.isalnum() or c in " _-")[:80]
 
     if type == "mp3":
         cmd = [
-            "yt-dlp",
-            "-x",
+            "yt-dlp", "-x",
             "--audio-format", "mp3",
             "--audio-quality", "192K",
             "--cookies", COOKIE_FILE,
-            "-o", output_template,
-            url
+            "-o", output, url
         ]
-        filename = "audio.mp3"
+        final = os.path.join(DOWNLOAD_DIR, f"{uid}.mp3")
         mime = "audio/mpeg"
-        final_file = os.path.join(DOWNLOAD_DIR, f"{uid}.mp3")
-
+        filename = f"{title}.mp3"
     else:
         q = quality if quality.isdigit() else "best"
         cmd = [
@@ -81,23 +63,17 @@ def download(
             "-f", f"bv*[height<={q}]+ba/b",
             "--merge-output-format", "mp4",
             "--cookies", COOKIE_FILE,
-            "-o", output_template,
-            url
+            "-o", output, url
         ]
-        filename = "video.mp4"
+        final = os.path.join(DOWNLOAD_DIR, f"{uid}.mp4")
         mime = "video/mp4"
-        final_file = os.path.join(DOWNLOAD_DIR, f"{uid}.mp4")
+        filename = f"{title}.mp4"
 
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    if not os.path.exists(final_file):
-        return JSONResponse(
-            {"error": "Download failed"},
-            status_code=500
-        )
+    if not os.path.exists(final):
+        return JSONResponse({"error": "Download failed"}, status_code=500)
 
-    return FileResponse(
-        final_file,
-        media_type=mime,
-        filename=filename
-    )
+    delete_file_later(final)
+
+    return FileResponse(final, media_type=mime, filename=filename)

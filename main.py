@@ -126,14 +126,16 @@ async def mp3(url: str = Query(...)):
     out = f"{APP_DIR}/{uuid.uuid4()}.mp3"
 
     cmd = [
-        "yt-dlp",
-        "-x",
-        "--audio-format", "mp3",
-        "--audio-quality", "192K",
-        "--no-playlist",
-        "-o", out,
-        url,
-    ]
+    "yt-dlp",
+    "-f", "ba",
+    "-x",
+    "--audio-format", "mp3",
+    "--audio-quality", "192K",
+    "--no-playlist",
+    "--postprocessor-args", "ffmpeg:-vn",
+    "-o", out,
+    url,
+]
 
     p = await asyncio.create_subprocess_exec(
         *cmd,

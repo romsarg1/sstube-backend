@@ -123,19 +123,21 @@ async def download(url: str = Query(...)):
 # -----------------------
 @app.get("/mp3")
 async def mp3(url: str = Query(...)):
-    out = f"{APP_DIR}/{uuid.uuid4()}.mp3"
+    base = f"{APP_DIR}/{uuid.uuid4()}"
+    template = base + ".%(ext)s"
 
     cmd = [
-    "yt-dlp",
-    "-f", "ba",
-    "-x",
-    "--audio-format", "mp3",
-    "--audio-quality", "192K",
-    "--no-playlist",
-    "--postprocessor-args", "ffmpeg:-vn",
-    "-o", out,
-    url,
-]
+        "yt-dlp",
+        "-f", "ba",
+        "--extract-audio",
+        "--audio-format", "mp3",
+        "--audio-quality", "192K",
+        "--prefer-ffmpeg",
+        "--no-playlist",
+        "--postprocessor-args", "ffmpeg:-vn",
+        "-o", template,
+        url,
+    ]
 
     p = await asyncio.create_subprocess_exec(
         *cmd,
@@ -144,12 +146,19 @@ async def mp3(url: str = Query(...)):
     )
     _, err = await p.communicate()
 
-    if p.returncode != 0 or not os.path.exists(out):
-        return JSONResponse({"error": err.decode()}, status_code=400)
+    # yt-dlp FINAL file will be base.mp3
+    mp3_file = base + ".mp3"
+
+    if p.returncode != 0 or not os.path.exists(mp3_file):
+        return JSONResponse(
+            {"error": err.decode() or "MP3 conversion failed"},
+            status_code=400,
+        )
 
     return FileResponse(
-        out,
+        mp3_file,
         media_type="audio/mpeg",
         filename="audio.mp3",
-        background=cleanup(out),
+        background=cleanup(mp3_file),
     )
+    

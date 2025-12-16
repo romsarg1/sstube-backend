@@ -128,13 +128,13 @@ async def mp3(url: str = Query(...)):
 
     cmd = [
         "yt-dlp",
-        "-f", "ba",
+        "-f", "bestaudio",
+        "--no-playlist",
         "--extract-audio",
         "--audio-format", "mp3",
         "--audio-quality", "192K",
         "--prefer-ffmpeg",
-        "--no-playlist",
-        "--postprocessor-args", "ffmpeg:-vn",
+        "--no-keep-video",
         "-o", template,
         url,
     ]
@@ -146,7 +146,6 @@ async def mp3(url: str = Query(...)):
     )
     _, err = await p.communicate()
 
-    # yt-dlp FINAL file will be base.mp3
     mp3_file = base + ".mp3"
 
     if p.returncode != 0 or not os.path.exists(mp3_file):
@@ -161,4 +160,3 @@ async def mp3(url: str = Query(...)):
         filename="audio.mp3",
         background=cleanup(mp3_file),
     )
-    
